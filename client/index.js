@@ -18,21 +18,22 @@ client.on('message', async message => {
     console.log('Received message:', message.body);
 
     // Check if the message contains a 10-digit number
-    if(/^\d+$/.test(message.body) && message.body.length === 10) {
-        const phoneNumber = message.body;
+    if(/^\d+$/.test(message.body) && message.body.length >= 10) {
+        let phoneNumber = message.body;
+        if(message.body.length>10){
+            let exceededlength = message.body.length - 10 ;
+            phoneNumber = phoneNumber.substring(exceededlength,message.body.length);
+        }
         const url = `https://digitalapiproxy.paytm.com/v1/mobile/getopcirclebyrange?channel=web&version=2&number=${phoneNumber}&child_site_id=1&site_id=1&locale=en-in`;
 
         try {
             // Make a request to the API to get the operator information
             const response = await axios.get(url);
             const data = response.data;
-            console.log(data)
-
             if (data && data.Operator) {
-                // Reply with the Operator value
-                await client.sendMessage(message.from, `The operator for the number is: ${data.Operator}`);
+                let operator = data.Operator
             } else {
-                await client.sendMessage(message.from, 'Could not determine the operator.');
+                await message.reply('Invalid number! Please enter a valid 10 digit number');
             }
 
             // React to the message
