@@ -62,7 +62,6 @@ class AsyncMessageSender:
                         )
                         message_text = await asyncio.to_thread(lambda: message_content.text)
                         
-                        # Extract MSISDN from the reply
                         msisdn_match = re.search(r'MSISDN (\d+)', message_text)
                         if msisdn_match:
                             msisdn = msisdn_match.group(1)
@@ -72,26 +71,34 @@ class AsyncMessageSender:
                                 print("---")
                                 self.processing.remove(msisdn)
                 
-                await asyncio.sleep(1)  # Check every second
+                await asyncio.sleep(10)
             except Exception as e:
                 print(f"An error occurred while checking for replies: {str(e)}")
-                await asyncio.sleep(1)
-
-    async def run(self, phone_number, operator):
-        await self.setup_driver()
-        result = await self.send_message(phone_number, operator)
-        return result
+                await asyncio.sleep(10)
 
 message_sender = AsyncMessageSender("https://messages.google.com/web/conversations/618")
 
 @app.route('/send', methods=['POST'])
-async def send_message():
+def send_message():
     data = request.get_json()
     phone_number = data.get('phone_number')
     operator = data.get('operator')
 
-    result = await message_sender.run(phone_number, operator)
+    # Run send_message coroutine
+    result = asyncio.run(message_sender.send_message(phone_number, operator))
     return jsonify({'status': result})
 
+async def main():
+    await message_sender.setup_driver()
+    asyncio.create_task(message_sender.check_for_replies())
+
+    # Start Flask server in the same event loop
+    from hypercorn.asyncio import serve
+    from hypercorn.config import Config
+
+    config = Config()
+    config.bind = ["0.0.0.0:5000"]
+    await serve(app, config)
+
 if __name__ == "__main__":
-    app.run(port=5000)
+    asyncio.run(main())
