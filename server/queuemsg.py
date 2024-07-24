@@ -1,5 +1,6 @@
 import asyncio
 import re
+from flask import Flask, request, jsonify
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -8,17 +9,18 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.keys import Keys
 
+app = Flask(__name__)
+
 class AsyncMessageSender:
     def __init__(self, conversation_url):
         self.conversation_url = conversation_url
         self.driver = None
-        self.queue = asyncio.Queue()
         self.processing = set()
 
     async def setup_driver(self):
         try:
             options = webdriver.ChromeOptions()
-            options.add_argument("user-data-dir=./chrome_profile")
+            options.add_argument("user-data-dir=C:/Users/prath/AppData/Local/Google/Chrome/User Data/Profile 1")
             service = Service(ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=options)
             await asyncio.to_thread(self.driver.get, self.conversation_url)
@@ -30,19 +32,21 @@ class AsyncMessageSender:
             print(f"Error setting up the driver: {e}")
             raise
 
-    async def send_message(self, phone_number):
+    async def send_message(self, phone_number, operator):
         try:
             input_area = await asyncio.to_thread(
                 WebDriverWait(self.driver, 20).until,
                 EC.presence_of_element_located((By.CSS_SELECTOR, "textarea[placeholder='Text message']"))
             )
             await asyncio.to_thread(input_area.clear)
-            await asyncio.to_thread(input_area.send_keys, phone_number)
+            await asyncio.to_thread(input_area.send_keys, f"{phone_number} - {operator}")
             await asyncio.to_thread(input_area.send_keys, Keys.RETURN)
-            print(f"Message sent: {phone_number}")
+            print(f"Message sent: {phone_number} - {operator}")
             self.processing.add(phone_number)
+            return "success"
         except Exception as e:
             print(f"An error occurred while sending the message: {str(e)}")
+            return "error"
 
     async def check_for_replies(self):
         while True:
@@ -73,42 +77,21 @@ class AsyncMessageSender:
                 print(f"An error occurred while checking for replies: {str(e)}")
                 await asyncio.sleep(1)
 
-    async def process_queue(self):
-        while True:
-            try:
-                phone_number = await self.queue.get()
-                await self.send_message(phone_number)
-                self.queue.task_done()
-            except Exception as e:
-                print(f"Error processing queue: {str(e)}")
-                self.queue.task_done()
+    async def run(self, phone_number, operator):
+        await self.setup_driver()
+        result = await self.send_message(phone_number, operator)
+        return result
 
-    async def run(self):
-        try:
-            await self.setup_driver()
-            check_replies_task = asyncio.create_task(self.check_for_replies())
-            process_queue_task = asyncio.create_task(self.process_queue())
+message_sender = AsyncMessageSender("https://messages.google.com/web/conversations/618")
 
-            while True:
-                phone_number = await asyncio.to_thread(input, "Enter a phone number (or 'q' to quit): ")
-                if phone_number.lower() == 'q':
-                    break
-                await self.queue.put(phone_number)
+@app.route('/send', methods=['POST'])
+async def send_message():
+    data = request.get_json()
+    phone_number = data.get('phone_number')
+    operator = data.get('operator')
 
-            await self.queue.join()
-            check_replies_task.cancel()
-            process_queue_task.cancel()
-            await asyncio.gather(check_replies_task, process_queue_task, return_exceptions=True)
-        except Exception as e:
-            print(f"An unexpected error occurred: {str(e)}")
-        finally:
-            if self.driver:
-                await asyncio.to_thread(self.driver.quit)
-
-async def main():
-    conversation_url = "https://messages.google.com/web/conversations/213"
-    sender = AsyncMessageSender(conversation_url)
-    await sender.run()
+    result = await message_sender.run(phone_number, operator)
+    return jsonify({'status': result})
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    app.run(port=5000)
