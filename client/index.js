@@ -1,6 +1,10 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const axios = require('axios');
+const express = require('express');
+
+const app = express();
+app.use(express.json());
 
 const client = new Client({
     authStrategy: new LocalAuth()
@@ -13,6 +17,8 @@ client.on('qr', qr => {
 client.on('ready', () => {
     console.log('Client is ready!');
 });
+
+let messageCache = {};
 
 client.on('message', async message => {
     console.log('Received message:', message.body);
@@ -38,6 +44,8 @@ client.on('message', async message => {
 
                 if (result.data.status === 'success') {
                     await message.react("✅");
+                    // Cache the message
+                    messageCache[phoneNumber] = message;
                 } else {
                     await message.reply('Error sending message.');
                 }
@@ -49,6 +57,23 @@ client.on('message', async message => {
             await client.sendMessage(message.from, 'There was an error fetching the operator information. Please try again later.');
         }
     }
+});
+
+// Endpoint to receive replies from Python server
+app.post('/reply', async (req, res) => {
+    const { phone_number, reply } = req.body;
+    const originalMessage = messageCache[phone_number];
+    if (originalMessage) {
+        await originalMessage.reply(reply);
+        delete messageCache[phone_number]; // Remove from cache after replying
+        res.status(200).send('Reply sent successfully');
+    } else {
+        res.status(404).send('Original message not found');
+    }
+});
+
+app.listen(3000, () => {
+    console.log('Node.js server is running on port 3000');
 });
 
 client.initialize();

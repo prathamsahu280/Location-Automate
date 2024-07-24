@@ -8,6 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.keys import Keys
+import requests
 
 app = Flask(__name__)
 
@@ -41,7 +42,7 @@ class AsyncMessageSender:
             await asyncio.to_thread(input_area.clear)
             await asyncio.to_thread(input_area.send_keys, f"{phone_number} - {operator}")
             await asyncio.to_thread(input_area.send_keys, Keys.RETURN)
-            print(f"Message sent: {phone_number} - {operator}")
+            print(f"Message sent: {phone_number}")
             self.processing.add(phone_number)
             return "success"
         except Exception as e:
@@ -70,6 +71,13 @@ class AsyncMessageSender:
                                 print(message_text)
                                 print("---")
                                 self.processing.remove(msisdn)
+                                
+                                # Send reply back to Node.js server
+                                response = requests.post('http://localhost:3000/reply', json={
+                                    'phone_number': msisdn,
+                                    'reply': message_text
+                                })
+                                print(f"Sent reply to Node.js server: {response.status_code}")
                 
                 await asyncio.sleep(10)
             except Exception as e:
