@@ -1,12 +1,10 @@
-const { Client, LocalAuth, Poll, DefaultOptions, MessageTypes } = require('whatsapp-web.js');
+const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const axios = require('axios');
 
 const client = new Client({
     authStrategy: new LocalAuth()
 });
-
-// Map to store poll messages by chat ID
-const pollMessages = new Map();
 
 client.on('qr', qr => {
     qrcode.generate(qr, {small: true});
@@ -18,7 +16,32 @@ client.on('ready', () => {
 
 client.on('message', async message => {
     console.log('Received message:', message.body);
-    
+
+    // Check if the message contains a 10-digit number
+    if(/^\d+$/.test(message.body) && message.body.length === 10) {
+        const phoneNumber = message.body;
+        const url = `https://digitalapiproxy.paytm.com/v1/mobile/getopcirclebyrange?channel=web&version=2&number=${phoneNumber}&child_site_id=1&site_id=1&locale=en-in`;
+
+        try {
+            // Make a request to the API to get the operator information
+            const response = await axios.get(url);
+            const data = response.data;
+            console.log(data)
+
+            if (data && data.Operator) {
+                // Reply with the Operator value
+                await client.sendMessage(message.from, `The operator for the number is: ${data.Operator}`);
+            } else {
+                await client.sendMessage(message.from, 'Could not determine the operator.');
+            }
+
+            // React to the message
+            await message.react("✅");
+        } catch (error) {
+            console.error('Error fetching operator information:', error);
+            await client.sendMessage(message.from, 'There was an error fetching the operator information. Please try again later.');
+        }
+    }
 });
 
 client.initialize();
