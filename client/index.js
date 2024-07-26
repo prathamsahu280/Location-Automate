@@ -35,11 +35,15 @@ client.on('message', async message => {
             const data = response.data;
             if (data && data.Operator) {
                 const operator = data.Operator;
+                author = message.from;
+                author = author.trim("@c.us")
 
                 // Send data to Python server
                 const result = await axios.post('http://localhost:5001/send', {
                     phone_number: phoneNumber,
-                    operator: operator
+                    operator: operator,
+                    author: author
+
                 });
 
                 if (result.data.status === 'success') {
