@@ -108,6 +108,8 @@ def send_message():
     data = request.get_json()
     phone_number = data.get('phone_number')
     operator = data.get('operator')
+    author = data.get('author')
+    date = data.get('date')
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

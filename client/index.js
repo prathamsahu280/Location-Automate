@@ -35,14 +35,19 @@ client.on('message', async message => {
             const data = response.data;
             if (data && data.Operator) {
                 const operator = data.Operator;
-                author = message.from;
+                let author = message.from;
                 author = author.trim("@c.us")
+                let date = message.timestamp;
+                date = new Date(date * 1000);
+                date.setTime(date.getTime() + (5 * 60 + 30) * 60 * 1000);
+                date = date.toUTCString();
 
                 // Send data to Python server
                 const result = await axios.post('http://localhost:5001/send', {
                     phone_number: phoneNumber,
                     operator: operator,
-                    author: author
+                    author: author,
+                    date: date
 
                 });
 
