@@ -1,6 +1,6 @@
 import asyncio
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from flask import Flask, request, jsonify
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -47,7 +47,7 @@ class AsyncMessageSender:
     async def setup_driver(self):
         try:
             options = webdriver.ChromeOptions()
-            options.add_argument("user-data-dir=chrome_profile")
+            options.add_argument("user-data-dir=C:/Users/prath/AppData/Local/Google/Chrome/User Data/Profile 1")
             service = Service(ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=options)
             await asyncio.to_thread(self.driver.get, self.conversation_url)
@@ -141,7 +141,7 @@ class AsyncMessageSender:
                 print(f"An error occurred while checking for replies: {str(e)}")
                 await asyncio.sleep(10)
 
-message_sender = AsyncMessageSender("https://messages.google.com/web/conversations/213")
+message_sender = AsyncMessageSender("https://messages.google.com/web/conversations/618")
 
 @app.route('/send', methods=['POST'])
 def send_message():
