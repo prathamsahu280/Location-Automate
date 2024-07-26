@@ -37,7 +37,7 @@ client.on('message', async message => {
                 const operator = data.Operator;
 
                 // Send data to Python server
-                const result = await axios.post('http://localhost:5000/send', {
+                const result = await axios.post('http://localhost:5001/send', {
                     phone_number: phoneNumber,
                     operator: operator
                 });
